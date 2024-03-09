@@ -14,7 +14,7 @@ function Home() {
                 const account = accounts[0];
                 window.localStorage.setItem("address", account);
                 const transactionsContract = await createEthereumContract();
-                const result = await transactionsContract.showAdminAddress();
+                const result = await transactionsContract.checkAdmin();
                 if (result.toLowerCase() === account.toLowerCase()) {
                     console.log("Yes");
                     navigate("/Admin");

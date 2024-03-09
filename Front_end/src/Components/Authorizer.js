@@ -1,14 +1,22 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { SodiumError, SodiumPlus, X25519PublicKey, X25519SecretKey } from "sodium-plus";
+import { SodiumPlus, X25519PublicKey, X25519SecretKey } from "sodium-plus";
+import { createEthereumContract } from "../Utils/Constants";
 
 function Authorizer() {
     const [authPubK, setAuthPubK] = useState();
     const [authSecK, setAuthSecK] = useState();
+    const [decryptedPubK, setDecryptedPubK] = useState("");
+    const [decryptedSecK, setDecryptedSecK] = useState("");
     const [pdfUrl1, setPdfUrl1] = useState();
     const [medPdfUrl, setmedPdfUrl] = useState();
     const [userDatas, setUserDatas] = useState([]);
     const [hideButton, setHideButton] = useState(false);
+
+    const [name, setName] = useState("");
+    const [position, setPosition] = useState("");
+    const [mailid, setMailid] = useState("");
+    const [walletAddress, setWalletAddress] = useState("");
 
     useEffect(() => {
         const fetchData = async () => {
@@ -22,6 +30,8 @@ function Authorizer() {
                     const secK = new X25519SecretKey(bufferS);
                     setAuthPubK(pubK);
                     setAuthSecK(secK);
+                    setDecryptedPubK(pubK.toString('hex'));
+                    setDecryptedSecK(secK.toString('hex'));
                 }
                 else if (res.data === 404)
                     console.log("Data not found");
@@ -32,9 +42,33 @@ function Authorizer() {
             }
         }
         fetchData();
+
+        async function getAuthInfo() {
+            const transactionContract = await createEthereumContract();
+            const walletAddress = localStorage.getItem("address");
+            try {
+                const data = await transactionContract.getCid_AuthAcc(walletAddress);
+                console.log("Data", data);
+                if (data) {
+                    try {
+                        const res = await fetch(`https://bkrgateway.infura-ipfs.io/ipfs/${data}`);
+                        const resjson = await res.json();
+                        setName(resjson.name);
+                        setMailid(resjson.email);
+                        setWalletAddress(resjson.address);
+                        setPosition(resjson.position);
+                    } catch (error) {
+                        console.log("Error:", error);
+                    }
+                }
+            } catch (error) {
+                console.log("Error:", error);
+            }
+        }
+        getAuthInfo();
     }, []);
 
-    async function showDatas(e) {
+    async function showDatas() {
         try {
             const res = await axios.get("http://localhost:8000/getUserData");
             if (res.data !== 404) {
@@ -93,6 +127,14 @@ function Authorizer() {
     return (
         <div className="container">
             <h1 style={{ textAlign: "center" }}>Authorizer</h1>
+            <div>
+                <h2>Name: {name}</h2>
+                <h2>Position: {position}</h2>
+                <h2>Mail id: {mailid}</h2>
+                <h2>Wallet Address: {walletAddress}</h2>
+                <h2>Public Key: {decryptedPubK}</h2>
+                <h2>Private Key: {decryptedSecK}</h2>
+            </div>
             {hideButton ? (
                 <table className="user-table">
                     <thead>
@@ -126,7 +168,9 @@ function Authorizer() {
                     </tbody>
                 </table>
             ) : (
-                <button onClick={showDatas}>Show User Datas</button>
+                <div>
+                    <button onClick={showDatas}>Show User Datas</button>
+                </div>
             )}
 
         </div>
